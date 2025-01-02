@@ -5,15 +5,20 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 export const generatePattern = async (options: GeneratePatternOptions = {}): Promise<Pattern> => {
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
+
         const response = await fetch(`${API_URL}/patterns/generate`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            mode: 'cors',
+            signal: controller.signal,
             body: JSON.stringify(options)
         });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -23,13 +28,14 @@ export const generatePattern = async (options: GeneratePatternOptions = {}): Pro
         return data;
     } catch (error) {
         console.error('Pattern generation error:', error);
+        // Return a fallback shape pattern
         return {
-            sequence: '2, 4, 6, 8, ?',
-            answer: '10',
-            type: 'numeric',
+            sequence: '△, △□, △□■, ?',
+            answer: '△□■○',
+            type: 'shape',
             difficulty: options.difficulty || 'medium',
-            hint: 'Look for the pattern in the numbers',
-            explanation: 'Each number increases by 2'
+            hint: 'Look at how shapes are added',
+            explanation: 'Each term adds a new shape while keeping previous shapes'
         };
     }
 };
