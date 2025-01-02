@@ -14,22 +14,35 @@ mongoose.connect(process.env.MONGODB_URI, {
 
 // CORS configuration
 app.use(cors({
-  origin: true, // This allows all origins but maintains CORS protection
+  origin: [
+    'https://micro-app-final.vercel.app',
+    'https://micro-final-frontend-493d2fr4r-oslo19s-projects.vercel.app',
+    'http://localhost:5173'
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  credentials: true,
-  maxAge: 86400 // Cache preflight requests for 24 hours
+  credentials: true
 }));
 
-// Add only essential headers
+// Pre-flight requests
+app.options('*', cors());
+
+// Add security headers
 app.use((req, res, next) => {
-  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  const allowedOrigins = [
+    'https://micro-app-final.vercel.app',
+    'https://micro-final-frontend-493d2fr4r-oslo19s-projects.vercel.app',
+    'http://localhost:5173'
+  ];
+  const origin = req.headers.origin;
   
-  // Set server timeouts
-  if (req.url.includes('/patterns/generate')) {
-    req.setTimeout(45000); // 45 seconds for pattern generation
-    res.setTimeout(45000);
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
   }
+  
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+  res.header('Access-Control-Allow-Credentials', 'true');
   
   next();
 });
