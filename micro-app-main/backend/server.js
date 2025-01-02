@@ -12,39 +12,24 @@ mongoose.connect(process.env.MONGODB_URI, {
 }).then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Updated CORS configuration
+// CORS configuration
 app.use(cors({
-  origin: [
-    'https://micro-final-frontend-493d2fr4r-oslo19s-projects.vercel.app',
-    'https://micro-app-final.vercel.app',
-    'http://localhost:5173'
-  ],
+  origin: true, // This allows all origins but maintains CORS protection
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  credentials: true
+  credentials: true,
+  maxAge: 86400 // Cache preflight requests for 24 hours
 }));
 
-// Add preflight handling
-app.options('*', cors());
-
-// Add security and CORS headers
+// Add only essential headers
 app.use((req, res, next) => {
-  // Set CORS headers
-  const origin = req.headers.origin;
-  if (origin && app.get('env') === 'production') {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  
-  // Set security headers
-  res.header('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
   res.header('Cross-Origin-Resource-Policy', 'cross-origin');
   
-  // Increase timeout
-  req.setTimeout(30000); // 30 seconds
-  res.setTimeout(30000);
+  // Set server timeouts
+  if (req.url.includes('/patterns/generate')) {
+    req.setTimeout(45000); // 45 seconds for pattern generation
+    res.setTimeout(45000);
+  }
   
   next();
 });
