@@ -31,7 +31,23 @@ export function Profile() {
     async function fetchUserData() {
       if (user) {
         try {
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${user.uid}`);
+          const response = await fetch(
+            `${import.meta.env.VITE_API_URL}/users/${user.uid}`,
+            {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              credentials: 'include',
+              mode: 'cors'
+            }
+          );
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
           const data = await response.json();
           setUserProgress(data.progress);
         } catch (error) {
