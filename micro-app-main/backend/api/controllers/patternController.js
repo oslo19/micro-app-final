@@ -309,12 +309,9 @@ const patternCache = new Map();
 
 const generatePattern = async (req, res) => {
     try {
-        await cleanupOldPatterns();
-        
         let requestedType = req.body.type || 'random';
         const requestedDifficulty = req.body.difficulty || 'medium';
 
-        // If random, select a type
         if (requestedType === 'random') {
             const types = ['numeric', 'symbolic', 'shape', 'logical'];
             requestedType = types[Math.floor(Math.random() * types.length)];
@@ -323,111 +320,65 @@ const generatePattern = async (req, res) => {
         // Check cache first
         const cacheKey = `${requestedType}-${requestedDifficulty}`;
         if (patternCache.has(cacheKey)) {
-            console.log('Returning cached pattern');
             return res.json(patternCache.get(cacheKey));
         }
 
-        const prompt = `Generate a ${requestedDifficulty} difficulty ${requestedType} pattern.
-            Requirements:
-            - For numeric: clear mathematical progression
-            - For symbolic: valid LaTeX mathematical expressions
-            - For shape: use basic shapes (△, □, ■, ○, ●)
-            - For logical: clear logical relationships
-            
-            Return in JSON format:
-            {
-                "sequence": "the pattern sequence",
-                "answer": "the next term",
-                "hint": "a helpful hint",
-                "explanation": "detailed explanation"
-            }`;
+        const prompt = `Generate a ${requestedDifficulty} ${requestedType} pattern with sequence and answer. Be brief.`;
 
         const response = await axios.post(
             'https://api.openai.com/v1/chat/completions',
             {
-                model: "gpt-3.5-turbo",  // Faster model
+                model: "gpt-3.5-turbo",
                 messages: [
                     {
                         role: "system",
-                        content: "You are a pattern generation expert. Be concise."
+                        content: "Generate only the pattern sequence and answer. Be concise."
                     },
                     {
                         role: "user",
                         content: prompt
                     }
                 ],
-                temperature: 0.3,  // More focused responses
-                max_tokens: 250,   // Shorter responses
-                response_format: { type: "json_object" }
+                temperature: 0.2,
+                max_tokens: 100,
+                presence_penalty: 0,
+                frequency_penalty: 0
             },
             {
                 headers: {
-                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-                    'Content-Type': 'application/json'
+                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
                 },
-                timeout: 15000  // Reduced timeout
+                timeout: 8000
             }
         );
 
-        const pattern = JSON.parse(response.data.choices[0].message.content);
-        pattern.type = requestedType;
-        pattern.difficulty = requestedDifficulty;
-
-        if (await validatePattern(pattern)) {
-            // Cache the successful pattern
-            patternCache.set(cacheKey, pattern);
-            // Limit cache size
-            if (patternCache.size > 20) {
-                const firstKey = patternCache.keys().next().value;
-                patternCache.delete(firstKey);
-            }
-            
-            await saveGeneratedPattern(pattern);
-            res.json(pattern);
-        } else {
-            throw new Error('Invalid pattern generated');
-        }
-
-    } catch (error) {
-        console.error('Error generating pattern:', error);
-        
-        // Fallback patterns if OpenAI fails
-        const fallbackPatterns = {
-            numeric: {
-                sequence: '2, 4, 6, 8, ?',
-                answer: '10',
-                type: 'numeric',
-                difficulty: requestedDifficulty,
-                hint: 'Look for the pattern in the numbers',
-                explanation: 'Each number increases by 2'
-            },
-            symbolic: {
-                sequence: 'x^1, x^2, x^3, ?',
-                answer: 'x^4',
-                type: 'symbolic',
-                difficulty: requestedDifficulty,
-                hint: 'Look at the exponents',
-                explanation: 'Each term increases the exponent by 1'
-            },
-            shape: {
-                sequence: '△, △□, △□■, ?',
-                answer: '△□■○',
-                type: 'shape',
-                difficulty: requestedDifficulty,
-                hint: 'Look at how shapes are added',
-                explanation: 'Each term adds a new shape while keeping previous shapes'
-            },
-            logical: {
-                sequence: '(2,3), (3,5), (5,7), ?',
-                answer: '(7,11)',
-                type: 'logical',
-                difficulty: requestedDifficulty,
-                hint: 'Look at how numbers change',
-                explanation: 'First number becomes previous second number, second number adds 2 more than before'
-            }
+        const pattern = {
+            ...JSON.parse(response.data.choices[0].message.content),
+            type: requestedType,
+            difficulty: requestedDifficulty
         };
 
-        res.json(fallbackPatterns[requestedType] || fallbackPatterns.numeric);
+        // Cache the pattern
+        patternCache.set(cacheKey, pattern);
+        if (patternCache.size > 10) { // Reduced cache size
+            const firstKey = patternCache.keys().next().value;
+            patternCache.delete(firstKey);
+        }
+
+        res.json(pattern);
+
+    } catch (error) {
+        console.error('Pattern generation error:', error);
+        // Return fallback pattern
+        const fallbackPattern = {
+            sequence: '2, 4, 6, 8, ?',
+            answer: '10',
+            type: requestedType,
+            difficulty: requestedDifficulty,
+            hint: 'Look for the pattern',
+            explanation: 'Each number increases by 2'
+        };
+        res.json(fallbackPattern);
     }
 };
 
