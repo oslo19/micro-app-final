@@ -304,19 +304,82 @@ const validateShapePattern = (sequence, answer, rule) => {
     return true;
 };
 
+// Add predefined shape patterns
+const shapePatterns = {
+    easy: [
+        {
+            sequence: '△, △□, △□■, ?',
+            answer: '△□■○',
+            hint: 'Look at how shapes are added',
+            explanation: 'Each term adds a new shape while keeping previous shapes'
+        },
+        {
+            sequence: '●, ●○, ●○□, ?',
+            answer: '●○□△',
+            hint: 'Notice the pattern of shapes',
+            explanation: 'Add a new shape in sequence'
+        },
+        {
+            sequence: '■, ■■, ■■■, ?',
+            answer: '■■■■',
+            hint: 'Count the squares',
+            explanation: 'Add one square each time'
+        }
+    ],
+    medium: [
+        {
+            sequence: '○●, ○●□, ○●□△, ?',
+            answer: '○●□△■',
+            hint: 'Look at the sequence of shapes',
+            explanation: 'Each term adds one new shape while maintaining order'
+        },
+        {
+            sequence: '□■, □■△, □■△○, ?',
+            answer: '□■△○●',
+            hint: 'Follow the pattern of shapes',
+            explanation: 'A new shape is added while keeping previous shapes'
+        }
+    ],
+    hard: [
+        {
+            sequence: '△○, △○□△, △○□△■○, ?',
+            answer: '△○□△■○●△',
+            hint: 'Study how shapes are combined',
+            explanation: 'Pattern adds pairs of shapes each time'
+        },
+        {
+            sequence: '■□, ■□△■, ■□△■○□, ?',
+            answer: '■□△■○□●△',
+            hint: 'Look at groups of shapes',
+            explanation: 'Each term adds two new shapes following the pattern'
+        }
+    ]
+};
+
+// Update the generatePattern function
 const generatePattern = async (req, res) => {
     try {
         await cleanupOldPatterns();
         
         let requestedType = req.body.type || 'random';
-            const requestedDifficulty = req.body.difficulty || 'medium';
-            
+        const requestedDifficulty = req.body.difficulty || 'medium';
+
         // Handle random type selection
         if (requestedType === 'random') {
-            console.log('Random type requested, selecting pattern type...');
             const patternTypes = ['numeric', 'symbolic', 'shape', 'logical'];
             requestedType = patternTypes[Math.floor(Math.random() * patternTypes.length)];
-            console.log('Randomly selected pattern type:', requestedType);
+        }
+
+        // Special handling for shape patterns
+        if (requestedType === 'shape') {
+            const patterns = shapePatterns[requestedDifficulty];
+            const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+            
+            return res.json({
+                ...pattern,
+                type: 'shape',
+                difficulty: requestedDifficulty
+            });
         }
 
         // Define fallback patterns first
