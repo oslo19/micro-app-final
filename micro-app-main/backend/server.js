@@ -12,10 +12,11 @@ mongoose.connect(process.env.MONGODB_URI, {
 }).then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// CORS configuration
+// Updated CORS configuration
 app.use(cors({
   origin: [
-    'https://micro-app-final-frontend.onrender.com',
+    'https://micro-final-frontend-493d2fr4r-oslo19s-projects.vercel.app',
+    'https://micro-app-final.vercel.app',
     'http://localhost:5173'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -23,11 +24,28 @@ app.use(cors({
   credentials: true
 }));
 
-// Add security headers
+// Add preflight handling
+app.options('*', cors());
+
+// Add security and CORS headers
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  // Set CORS headers
+  const origin = req.headers.origin;
+  if (origin && app.get('env') === 'production') {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Set security headers
+  res.header('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  
+  // Increase timeout
+  req.setTimeout(30000); // 30 seconds
+  res.setTimeout(30000);
+  
   next();
 });
 
@@ -54,13 +72,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something broke!' });
 });
 
-// Port configuration
-const PORT = process.env.PORT || 10000;
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-// Export for Render
+// Export for Vercel
 module.exports = app;
