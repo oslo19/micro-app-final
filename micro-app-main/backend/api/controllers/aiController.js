@@ -3,67 +3,93 @@ const axios = require('axios');
 const getHint = async (req, res) => {
     try {
         const { pattern, userAttempts } = req.body;
+        console.log('Received pattern for hint generation:', pattern);
         
-        // Simplified prompt for faster response
-        const prompt = `Pattern: ${pattern.sequence}
-Type: ${pattern.type}
-Difficulty: ${pattern.difficulty}
+        // Generate prompts for all three hint levels
+        const hintPrompts = [
+            // Hint Level 1 - Basic Observation
+            `Provide a basic hint for this ${pattern.type} pattern: ${pattern.sequence}
+            Requirements for Hint Level 1:
+            - Point out obvious visual patterns
+            - Guide initial observations
+            - Keep it simple and encouraging
+            - Don't reveal the solution method
+            Format: Just provide the basic hint in 1-2 sentences.`,
 
-Generate 3 progressive hints:
-1. Basic: One sentence observation hint
-2. Medium: Two sentence strategy hint
-3. Detailed: Three step solution guide
+            // Hint Level 2 - Pattern Analysis
+            `Provide a more detailed hint for this ${pattern.type} pattern: ${pattern.sequence}
+            Requirements for Hint Level 2:
+            - Break down the pattern structure
+            - Highlight key relationships
+            - Suggest a solution approach
+            - Don't give away the answer
+            Format: Provide a structured hint with pattern analysis.`,
 
-Format: JSON with hint1, hint2, hint3 keys. Keep each hint concise.`;
+            // Hint Level 3 - Comprehensive Guide
+            `Provide a comprehensive hint for this ${pattern.type} pattern: ${pattern.sequence}
+            Requirements for Hint Level 3:
+            - Detailed step-by-step guidance
+            - Explain the pattern logic
+            - Show how to verify the pattern
+            - Everything except the direct answer
+            Format: Provide a detailed explanation with steps to solve.`
+        ];
 
-        const response = await axios.post(
-            'https://api.openai.com/v1/chat/completions',
-            {
-                model: "gpt-3.5-turbo", // Using faster model
-                messages: [
-                    {
-                        role: "system",
-                        content: "You are a concise math tutor. Keep hints brief and clear."
-                    },
-                    {
-                        role: "user",
-                        content: prompt
-                    }
-                ],
-                temperature: 0.7,
-                max_tokens: 150, // Reduced tokens
-                response_format: { type: "json_object" }
-            },
-            {
-                headers: {
-                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+        console.log('Generating hints for all levels...');
+        const responses = await Promise.all(hintPrompts.map(async (prompt, index) => {
+            console.log(`Generating hint level ${index + 1}...`);
+            const response = await axios.post(
+                'https://api.openai.com/v1/chat/completions',
+                {
+                    model: "gpt-4-turbo-preview",
+                    messages: [
+                        {
+                            role: "system",
+                            content: "You are a patient math tutor providing scaffolded hints."
+                        },
+                        {
+                            role: "user",
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 300
                 },
-                timeout: 5000 // 5 second timeout
-            }
+                {
+                    headers: {
+                        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+                    }
+                }
+            );
+            console.log(`Hint level ${index + 1} generated:`, response.data.choices[0].message.content);
+            return response;
+        }));
+
+        const hints = responses.map(response => 
+            response.data.choices[0].message.content.trim()
         );
 
-        const hints = response.data.choices[0].message.content;
-        const parsedHints = JSON.parse(hints);
+        console.log('All hints generated:', hints);
 
         const responseData = {
-            hint: parsedHints.hint1,
-            reasoning: parsedHints.hint2,
-            tips: parsedHints.hint3.split('.'), // Split into array for step-by-step
+            hint: hints[0], // Basic hint
+            reasoning: hints[1], // Detailed hint
+            tips: hints[2].split('\n'), // Comprehensive hint split into steps
             confidence: 0.9,
-            relatedConcepts: `Key concept: ${pattern.type} patterns`
+            relatedConcepts: `This pattern involves concepts like ${pattern.type === 'numeric' ? 'arithmetic sequences and differences' : 
+                pattern.type === 'symbolic' ? 'mathematical notation and operations' :
+                pattern.type === 'shape' ? 'geometric progressions and spatial patterns' :
+                'logical relationships and pattern recognition'}`
         };
 
+        console.log('Sending response:', responseData);
         res.json(responseData);
 
     } catch (error) {
         console.error('Error generating hints:', error);
-        // Fallback hints
-        res.json({
-            hint: "Look at how the pattern changes between terms.",
-            reasoning: "Consider the relationship between consecutive elements.",
-            tips: ["Observe the pattern", "Apply the rule", "Verify your answer"],
-            confidence: 0.7,
-            relatedConcepts: "Pattern recognition"
+        res.status(500).json({ 
+            error: 'Error generating hints',
+            details: error.message
         });
     }
 };
