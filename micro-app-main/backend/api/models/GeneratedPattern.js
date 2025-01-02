@@ -2,8 +2,16 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const generatedPatternSchema = new Schema({
-  sequence: { type: String, required: true },
-  answer: { type: String, required: true },
+  sequence: { 
+    type: String, 
+    required: true,
+    set: v => Array.isArray(v) ? v.join(', ') : v
+  },
+  answer: { 
+    type: String, 
+    required: true,
+    set: v => Array.isArray(v) ? v.join('') : v
+  },
   type: { 
     type: String, 
     enum: ['numeric', 'symbolic', 'shape', 'logical'],
