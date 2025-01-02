@@ -317,22 +317,17 @@ const generatePattern = async (req, res) => {
             requestedType = types[Math.floor(Math.random() * types.length)];
         }
 
-        // Generate pattern using OpenAI for all types
-        const prompt = `Generate a ${requestedDifficulty} difficulty ${requestedType} pattern.
-            Requirements:
-            - For numeric: clear mathematical progression
-            - For symbolic: valid LaTeX mathematical expressions
-            - For shape: use basic shapes (△, □, ■, ○, ●)
-            - For logical: clear logical relationships
-            
-            Return in JSON format:
-            {
-                "sequence": "the pattern sequence",
-                "answer": "the next term",
-                "hint": "a helpful hint",
-                "explanation": "detailed explanation"
-            }`;
+        // Add timeout configuration
+        const axiosConfig = {
+            timeout: 25000, // 25 seconds
+            headers: {
+                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        };
 
+        // For symbolic, shape, or logical patterns
+        if (requestedType !== 'numeric') {
             const response = await axios.post(
                 'https://api.openai.com/v1/chat/completions',
                 {
@@ -340,79 +335,80 @@ const generatePattern = async (req, res) => {
                     messages: [
                         {
                             role: "system",
-                        content: "You are a pattern generation expert."
+                            content: "You are a pattern generation expert."
                         },
                         {
                             role: "user",
-                        content: prompt
-                    }
-                ],
-                temperature: 0.7,
-                max_tokens: 500,
-                response_format: { type: "json_object" }
+                            content: `Generate a ${requestedDifficulty} difficulty ${requestedType} pattern.
+                                Requirements:
+                                - For numeric: clear mathematical progression
+                                - For symbolic: valid LaTeX mathematical expressions
+                                - For shape: use basic shapes (△, □, ■, ○, ●)
+                                - For logical: clear logical relationships
+                                
+                                Return in JSON format:
+                                {
+                                    "sequence": "the pattern sequence",
+                                    "answer": "the next term",
+                                    "hint": "a helpful hint",
+                                    "explanation": "detailed explanation"
+                                }`
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 500
                 },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                timeout: 30000 // 30 second timeout
-            }
-        );
+                axiosConfig
+            );
 
-        const pattern = JSON.parse(response.data.choices[0].message.content);
-        pattern.type = requestedType;
-        pattern.difficulty = requestedDifficulty;
+            // Add response timeout
+            res.setTimeout(30000, () => {
+                res.status(503).json({ 
+                    error: 'Request timeout',
+                    fallback: getFallbackPattern(requestedType, requestedDifficulty)
+                });
+            });
 
-        // Validate the generated pattern
-        if (await validatePattern(pattern)) {
-            await saveGeneratedPattern(pattern);
+            // Process response and send pattern
+            const pattern = processOpenAIResponse(response);
             res.json(pattern);
-        } else {
-            throw new Error('Invalid pattern generated');
         }
-
     } catch (error) {
-        console.error('Error generating pattern:', error);
-        
-        // Fallback patterns if OpenAI fails
-        const fallbackPatterns = {
-            numeric: {
-                sequence: '2, 4, 6, 8, ?',
-                answer: '10',
-                type: 'numeric',
-                difficulty: requestedDifficulty,
-                hint: 'Look for the pattern in the numbers',
-                explanation: 'Each number increases by 2'
-            },
-            symbolic: {
-                sequence: 'x^1, x^2, x^3, ?',
-                answer: 'x^4',
-                type: 'symbolic',
-                difficulty: requestedDifficulty,
-                hint: 'Look at the exponents',
-                explanation: 'Each term increases the exponent by 1'
-            },
-            shape: {
-                sequence: '△, △□, △□■, ?',
-                answer: '△□■○',
-                type: 'shape',
-                difficulty: requestedDifficulty,
-                hint: 'Look at how shapes are added',
-                explanation: 'Each term adds a new shape while keeping previous shapes'
-            },
-            logical: {
-                sequence: '(2,3), (3,5), (5,7), ?',
-                answer: '(7,11)',
-                type: 'logical',
-                difficulty: requestedDifficulty,
-                hint: 'Look at how numbers change',
-                explanation: 'First number becomes previous second number, second number adds 2 more than before'
-            }
-        };
-
-        res.json(fallbackPatterns[requestedType] || fallbackPatterns.numeric);
+        console.error('Pattern generation error:', error);
+        // Return fallback pattern
+        res.json(getFallbackPattern(requestedType, requestedDifficulty));
     }
+};
+
+// Fallback patterns function
+const getFallbackPattern = (type, difficulty) => {
+    const fallbacks = {
+        symbolic: {
+            sequence: "x^1, x^2, x^3, ?",
+            answer: "x^4",
+            type: "symbolic",
+            difficulty,
+            hint: "Look at the exponents",
+            explanation: "Each term increases the exponent by 1"
+        },
+        shape: {
+            sequence: "△, △□, △□■, ?",
+            answer: "△□■○",
+            type: "shape",
+            difficulty,
+            hint: "Look at how shapes are added",
+            explanation: "Each term adds a new shape"
+        },
+        logical: {
+            sequence: "(1,2), (2,3), (3,4), ?",
+            answer: "(4,5)",
+            type: "logical",
+            difficulty,
+            hint: "Look at how numbers change",
+            explanation: "Each number increases by 1"
+        }
+    };
+    return fallbacks[type] || fallbacks.symbolic;
 };
 
 const generateDetailedExplanation = (sequence, answer, type, rule) => {
