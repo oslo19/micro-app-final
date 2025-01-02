@@ -5,29 +5,18 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 export const generatePattern = async (options: GeneratePatternOptions = {}): Promise<Pattern> => {
     try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
-
         const response = await fetch(`${API_URL}/patterns/generate`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
-            body: JSON.stringify(options),
-            signal: controller.signal
+            mode: 'cors',
+            body: JSON.stringify(options)
         });
 
-        clearTimeout(timeoutId);
-
         if (!response.ok) {
-            return {
-                sequence: '△, △□, △□■, ?',
-                answer: '△□■○',
-                type: 'shape',
-                difficulty: options.difficulty || 'medium',
-                hint: 'Look at how shapes are added',
-                explanation: 'Each term adds a new shape while keeping previous shapes'
-            };
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
@@ -35,12 +24,12 @@ export const generatePattern = async (options: GeneratePatternOptions = {}): Pro
     } catch (error) {
         console.error('Pattern generation error:', error);
         return {
-            sequence: '△, △□, △□■, ?',
-            answer: '△□■○',
-            type: 'shape',
+            sequence: '2, 4, 6, 8, ?',
+            answer: '10',
+            type: 'numeric',
             difficulty: options.difficulty || 'medium',
-            hint: 'Look at how shapes are added',
-            explanation: 'Each term adds a new shape while keeping previous shapes'
+            hint: 'Look for the pattern in the numbers',
+            explanation: 'Each number increases by 2'
         };
     }
 };
