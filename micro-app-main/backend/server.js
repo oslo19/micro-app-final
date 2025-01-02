@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 require('dotenv').config();
-const compression = require('compression');
 
 const app = express();
 
@@ -15,13 +14,10 @@ mongoose.connect(process.env.MONGODB_URI, {
 
 // CORS configuration
 app.use(cors({
-  origin: [
-    'https://micro-final-frontend-dcxzhrqmb-oslo19s-projects.vercel.app',
-    'https://micro-app-final.vercel.app'
-  ],
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type'],
-  credentials: true
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  credentials: false
 }));
 
 // Add security headers
@@ -33,9 +29,6 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
-
-// Add compression middleware
-app.use(compression());
 
 // Import routes
 const userRoutes = require('./api/routes/userRoutes');
