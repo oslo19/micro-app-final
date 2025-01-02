@@ -5,29 +5,24 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 export const generatePattern = async (options: GeneratePatternOptions = {}): Promise<Pattern> => {
     try {
-        console.log('Sending request to:', `${API_URL}/patterns/generate`);
         const response = await fetch(`${API_URL}/patterns/generate`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            credentials: 'include',
             mode: 'cors',
             body: JSON.stringify(options)
         });
 
         if (!response.ok) {
-            console.error('Server response:', response.status, response.statusText);
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log('Received data:', data);
         return data;
     } catch (error) {
         console.error('Pattern generation error:', error);
-        // Return fallback pattern
         return {
             sequence: '2, 4, 6, 8, ?',
             answer: '10',
