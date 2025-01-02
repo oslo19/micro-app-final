@@ -8,20 +8,14 @@
   ],
   "routes": [
     {
-      "src": "/users/(.*)",
-      "dest": "server.js"
-    },
-    {
-      "src": "/patterns/(.*)",
-      "dest": "server.js"
-    },
-    {
-      "src": "/ai/(.*)",
-      "dest": "server.js"
-    },
-    {
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ]
+  ],
+  "functions": {
+    "server.js": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  }
 } 
