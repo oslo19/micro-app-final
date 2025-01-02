@@ -4,47 +4,34 @@ import { generateAIHint } from '../utils/aiHelper';
 const API_URL = import.meta.env.VITE_API_URL;
 
 export const generatePattern = async (options: GeneratePatternOptions = {}): Promise<Pattern> => {
-    const retryCount = 3; // Number of retry attempts
-    const timeout = 8000; // 8 seconds timeout
+    try {
+        const response = await fetch(`${API_URL}/patterns/generate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            mode: 'cors',
+            body: JSON.stringify(options)
+        });
 
-    for (let attempt = 0; attempt < retryCount; attempt++) {
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-            console.log(`Attempt ${attempt + 1} to generate ${options.type} pattern`);
-
-            const response = await fetch(`${API_URL}/patterns/generate`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                mode: 'cors',
-                signal: controller.signal,
-                body: JSON.stringify({
-                    ...options,
-                    retryAttempt: attempt // Send attempt number to backend
-                })
-            });
-
-            clearTimeout(timeoutId);
-
-            if (response.ok) {
-                const data = await response.json();
-                return data;
-            }
-
-            console.log(`Attempt ${attempt + 1} failed, retrying...`);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between retries
-
-        } catch (error) {
-            console.error(`Error on attempt ${attempt + 1}:`, error);
-            if (attempt === retryCount - 1) throw error;
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-    }
 
-    throw new Error(`Failed to generate pattern after ${retryCount} attempts`);
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Pattern generation error:', error);
+        return {
+            sequence: '2, 4, 6, 8, ?',
+            answer: '10',
+            type: 'numeric',
+            difficulty: options.difficulty || 'medium',
+            hint: 'Look for the pattern in the numbers',
+            explanation: 'Each number increases by 2'
+        };
+    }
 };
 
 export const getAIHint = async (pattern: Pattern, userAttempts: number) => {
