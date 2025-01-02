@@ -10,6 +10,21 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-auth.useDeviceLanguage(); 
+let auth;
+
+try {
+  console.log('Firebase config:', {
+    apiKey: firebaseConfig.apiKey ? 'exists' : 'missing',
+    authDomain: firebaseConfig.authDomain ? 'exists' : 'missing',
+    projectId: firebaseConfig.projectId ? 'exists' : 'missing'
+  });
+  
+  const app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  auth.useDeviceLanguage();
+} catch (error) {
+  console.error('Firebase initialization error:', error);
+  throw error;
+}
+
+export { auth }; 
