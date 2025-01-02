@@ -8,24 +8,17 @@
   ],
   "routes": [
     {
-      "src": "/patterns/generate",
+      "src": "/(.*)",
       "dest": "server.js",
       "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Origin": "https://micro-app-final.vercel.app",
+        "Access-Control-Allow-Methods": "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept",
-        "Access-Control-Max-Age": "86400"
+        "Access-Control-Allow-Credentials": "true"
       }
-    },
-    {
-      "src": "/(.*)",
-      "dest": "server.js"
     }
   ],
-  "functions": {
-    "server.js": {
-      "memory": 1024,
-      "maxDuration": 60
-    }
+  "env": {
+    "NODE_ENV": "production"
   }
 } 
