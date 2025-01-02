@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 require('dotenv').config();
+const compression = require('compression');
 
 const app = express();
 
@@ -14,10 +15,9 @@ mongoose.connect(process.env.MONGODB_URI, {
 
 // CORS configuration
 app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  credentials: false
+  origin: process.env.FRONTEND_URL || '*',
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type']
 }));
 
 // Add security headers
@@ -29,6 +29,9 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
+
+// Add compression middleware
+app.use(compression());
 
 // Import routes
 const userRoutes = require('./api/routes/userRoutes');
