@@ -3,54 +3,39 @@ const Pattern = require('../models/Pattern');
 const CompletedPattern = require('../models/CompletedPattern');
 const GeneratedPattern = require('../models/GeneratedPattern');
 
-const validatePattern = (pattern) => {
-    // Basic validation without API calls
-    const { sequence, answer, type, difficulty } = pattern;
-    
-    // Check required fields
-    if (!sequence || !answer || !type || !difficulty) {
-        return false;
+const validatePattern = async (pattern) => {
+    try {
+        // Add timeout and retry logic
+        const config = {
+            timeout: 5000, // 5 second timeout
+            headers: {
+                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            maxRetries: 2
+        };
+
+        const response = await axios.post(
+            'https://api.openai.com/v1/chat/completions',
+            {
+                model: "gpt-4",
+                messages: [{ 
+                    role: "user", 
+                    content: `Is the pattern ${pattern.sequence} ambiguous? Answer only yes or no.`
+                }],
+                temperature: 0.3
+            },
+            config
+        );
+
+        // Simplified check
+        const answer = response.data.choices[0].message.content.toLowerCase();
+        return answer.includes('no');
+
+    } catch (error) {
+        console.error('Validation error:', error);
+        return true; // Allow pattern on validation error
     }
-
-    // Simple type-specific validation
-    switch (type) {
-        case 'numeric':
-            return validateNumericSimple(sequence, answer);
-        case 'symbolic':
-            return validateSymbolicSimple(sequence, answer);
-        case 'shape':
-            return validateShapeSimple(sequence, answer);
-        case 'logical':
-            return validateLogicalSimple(sequence, answer);
-        default:
-            return false;
-    }
-};
-
-// Simplified validations without API calls
-const validateNumericSimple = (sequence, answer) => {
-    const numbers = sequence.split(',')
-        .map(n => n.trim())
-        .filter(n => n !== '?' && n !== '')
-        .map(Number);
-    return !isNaN(answer) && numbers.length >= 2;
-};
-
-const validateSymbolicSimple = (sequence, answer) => {
-    return sequence.includes('\\') || 
-           sequence.includes('^') || 
-           sequence.includes('_');
-};
-
-const validateShapeSimple = (sequence, answer) => {
-    const validShapes = ['●', '○', '■', '□', '△', '▲', '◆'];
-    return sequence.split('').some(char => validShapes.includes(char));
-};
-
-const validateLogicalSimple = (sequence, answer) => {
-    return sequence.includes('→') || 
-           sequence.includes('(') || 
-           sequence.includes(')');
 };
 
 // Add this function to check for existing patterns
