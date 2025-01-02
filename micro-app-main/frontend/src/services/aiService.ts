@@ -5,20 +5,15 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 export const generatePattern = async (options: GeneratePatternOptions = {}): Promise<Pattern> => {
     try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
-
         const response = await fetch(`${API_URL}/patterns/generate`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            signal: controller.signal,
+            credentials: 'include',
             body: JSON.stringify(options)
         });
-
-        clearTimeout(timeoutId);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -28,7 +23,6 @@ export const generatePattern = async (options: GeneratePatternOptions = {}): Pro
         return data;
     } catch (error) {
         console.error('Pattern generation error:', error);
-        // Return a fallback shape pattern
         return {
             sequence: '△, △□, △□■, ?',
             answer: '△□■○',
