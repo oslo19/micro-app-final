@@ -15,9 +15,13 @@ mongoose.connect(process.env.MONGODB_URI, {
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: [
+    'https://micro-final-frontend-dcxzhrqmb-oslo19s-projects.vercel.app',
+    'https://micro-app-final.vercel.app'
+  ],
   methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type']
+  allowedHeaders: ['Content-Type'],
+  credentials: true
 }));
 
 // Add security headers
