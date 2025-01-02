@@ -2,5 +2,6 @@ services:
   - type: web
     name: micro-app-final-backend
     env: node
+    rootDir: micro-app-main/backend
     buildCommand: npm install
     startCommand: npm start 
