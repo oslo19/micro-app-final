@@ -5,12 +5,13 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 export const generatePattern = async (options: GeneratePatternOptions = {}): Promise<Pattern> => {
     try {
-        const timestamp = Date.now();
-        const response = await fetch(`${API_URL}/patterns/generate?t=${timestamp}`, {
+        const response = await fetch(`${API_URL}/patterns/generate`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
+            mode: 'cors',
             body: JSON.stringify(options)
         });
 
@@ -18,19 +19,18 @@ export const generatePattern = async (options: GeneratePatternOptions = {}): Pro
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        return await response.json();
+        const data = await response.json();
+        return data;
     } catch (error) {
         console.error('Pattern generation error:', error);
-        return getFallbackPattern(options);
-    }
-};
-
-export const prefetchNextPattern = async (options: GeneratePatternOptions = {}) => {
-    try {
-        const response = await generatePattern(options);
-        sessionStorage.setItem('nextPattern', JSON.stringify(response));
-    } catch (error) {
-        console.error('Prefetch error:', error);
+        return {
+            sequence: '2, 4, 6, 8, ?',
+            answer: '10',
+            type: 'numeric',
+            difficulty: options.difficulty || 'medium',
+            hint: 'Look for the pattern in the numbers',
+            explanation: 'Each number increases by 2'
+        };
     }
 };
 
