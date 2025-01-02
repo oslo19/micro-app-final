@@ -1,24 +1,14 @@
 {
-  "version": 2,
   "builds": [
     {
-      "src": "server.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "server.js",
-      "headers": {
-        "cache-control": "s-maxage=3600"
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
       }
     }
   ],
-  "functions": {
-    "server.js": {
-      "memory": 1024,
-      "maxDuration": 10
-    }
-  }
-} 
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/" }
+  ]
+}
