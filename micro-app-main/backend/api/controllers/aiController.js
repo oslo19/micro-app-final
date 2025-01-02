@@ -3,8 +3,25 @@ const axios = require('axios');
 const getHint = async (req, res) => {
     try {
         const { pattern, userAttempts } = req.body;
-        console.log('Generating hints for pattern:', pattern);
         
+        // Simple hint generation based on attempts
+        const hintTypes = {
+            1: {
+                prompt: `Give a one-sentence basic hint for: ${pattern.sequence}`,
+                max_tokens: 50
+            },
+            2: {
+                prompt: `Give a two-sentence detailed hint for: ${pattern.sequence}`,
+                max_tokens: 100
+            },
+            3: {
+                prompt: `Give three key steps to solve: ${pattern.sequence}`,
+                max_tokens: 150
+            }
+        };
+
+        const { prompt, max_tokens } = hintTypes[userAttempts] || hintTypes[1];
+
         const response = await axios.post(
             'https://api.openai.com/v1/chat/completions',
             {
@@ -12,41 +29,38 @@ const getHint = async (req, res) => {
                 messages: [
                     {
                         role: "system",
-                        content: "You are a math tutor providing concise hints."
+                        content: "You are a tutor. Be very concise."
                     },
                     {
                         role: "user",
-                        content: `Provide a ${userAttempts === 1 ? 'basic' : userAttempts === 2 ? 'detailed' : 'comprehensive'} hint for this ${pattern.type} pattern: ${pattern.sequence}`
+                        content: prompt
                     }
                 ],
-                temperature: 0.3,
-                max_tokens: 150,
-                response_format: { type: "json_object" }
+                temperature: 0.2,
+                max_tokens,
+                presence_penalty: 0,
+                frequency_penalty: 0
             },
             {
                 headers: {
                     'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
                 },
-                timeout: 10000
+                timeout: 8000 // 8 seconds max
             }
         );
 
-        const hint = response.data.choices[0].message.content;
-        console.log('Generated hint:', hint);
-
         res.json({
-            hint: hint,
+            hint: response.data.choices[0].message.content,
             confidence: 0.9,
-            relatedConcepts: `Pattern recognition, ${pattern.type} sequences`
+            relatedConcepts: `${pattern.type} patterns`
         });
 
     } catch (error) {
-        console.error('Error generating hints:', error);
-        // Return fallback hint
+        console.error('Hint generation error:', error);
         res.json({
-            hint: "Look for patterns in how the values change",
+            hint: "Look for patterns in the sequence",
             confidence: 0.7,
-            relatedConcepts: "Basic pattern recognition"
+            relatedConcepts: "Pattern recognition"
         });
     }
 };
