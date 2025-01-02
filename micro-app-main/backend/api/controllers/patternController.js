@@ -2,6 +2,9 @@ const axios = require('axios');
 const Pattern = require('../models/Pattern');
 const CompletedPattern = require('../models/CompletedPattern');
 const GeneratedPattern = require('../models/GeneratedPattern');
+const NodeCache = require('node-cache');
+
+const patternCache = new NodeCache({ stdTTL: 3600 }); // Cache for 1 hour
 
 const validatePattern = async (pattern) => {
     try {
@@ -304,172 +307,58 @@ const validateShapePattern = (sequence, answer, rule) => {
     return true;
 };
 
-// Add pre-defined shape patterns
-const shapePatterns = {
-    easy: [
-        {
-            sequence: '△, △△, △△△, ?',
-            answer: '△△△△',
-            hint: 'Count the triangles',
-            explanation: 'Add one triangle each time'
-        },
-        {
-            sequence: '●, ●○, ●○●, ?',
-            answer: '●○●○',
-            hint: 'Look at how circles alternate',
-            explanation: 'Alternate between filled and empty circles'
-        }
-    ],
-    medium: [
-        {
-            sequence: '△, △□, △□■, ?',
-            answer: '△□■○',
-            hint: 'Look at how shapes are added',
-            explanation: 'Each term adds a new different shape'
-        },
-        {
-            sequence: '■□, □■, ■□, ?',
-            answer: '□■',
-            hint: 'Look at how squares alternate',
-            explanation: 'Filled and empty squares swap positions'
-        }
-    ],
-    hard: [
-        {
-            sequence: '△■, ■△○, △■○□, ?',
-            answer: '■△○□●',
-            hint: 'Watch the pattern of shape additions',
-            explanation: 'Add one new shape each time while maintaining order'
-        },
-        {
-            sequence: '●○●, ○●○●, ●○●○●, ?',
-            answer: '○●○●○●',
-            hint: 'Look at how circles alternate and grow',
-            explanation: 'Pattern alternates and adds one circle each time'
-        }
-    ]
-};
-
-// Modify the generatePattern function
 const generatePattern = async (req, res) => {
     try {
-        await cleanupOldPatterns();
+        const { type = 'random', difficulty = 'medium' } = req.body;
+        const cacheKey = `pattern_${type}_${difficulty}`;
+
+        // Check cache first
+        const cachedPattern = patternCache.get(cacheKey);
+        if (cachedPattern) {
+            console.log('Serving cached pattern');
+            return res.json(cachedPattern);
+        }
+
+        // Optimize OpenAI request
+        const prompt = `Generate a ${difficulty} ${type} pattern. Format: JSON with sequence, answer, hint, explanation. Be concise.`;
         
-        let requestedType = req.body.type || 'random';
-        const requestedDifficulty = req.body.difficulty || 'medium';
-
-        // If shape pattern is requested, use pre-defined patterns
-        if (requestedType === 'shape') {
-            const patterns = shapePatterns[requestedDifficulty];
-            const pattern = patterns[Math.floor(Math.random() * patterns.length)];
-            return res.json({
-                ...pattern,
-                type: 'shape',
-                difficulty: requestedDifficulty
-            });
-        }
-
-        // If random, select a type
-        if (requestedType === 'random') {
-            const types = ['numeric', 'symbolic', 'shape', 'logical'];
-            requestedType = types[Math.floor(Math.random() * types.length)];
-        }
-
-        // Generate pattern using OpenAI for all types
-        const prompt = `Generate a ${requestedDifficulty} difficulty ${requestedType} pattern.
-            Requirements:
-            - For numeric: clear mathematical progression
-            - For symbolic: valid LaTeX mathematical expressions
-            - For shape: use basic shapes (△, □, ■, ○, ●)
-            - For logical: clear logical relationships
-            
-            Return in JSON format:
+        const response = await axios.post(
+            'https://api.openai.com/v1/chat/completions',
             {
-                "sequence": "the pattern sequence",
-                "answer": "the next term",
-                "hint": "a helpful hint",
-                "explanation": "detailed explanation"
-            }`;
-
-            const response = await axios.post(
-                'https://api.openai.com/v1/chat/completions',
-                {
-                    model: "gpt-4-turbo-preview",
-                    messages: [
-                        {
-                            role: "system",
-                        content: "You are a pattern generation expert."
-                        },
-                        {
-                            role: "user",
+                model: "gpt-3.5-turbo", // Faster than GPT-4
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are a pattern generator. Be concise."
+                    },
+                    {
+                        role: "user",
                         content: prompt
                     }
                 ],
                 temperature: 0.7,
-                max_tokens: 500,
+                max_tokens: 150, // Reduced tokens
                 response_format: { type: "json_object" }
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                    'Content-Type': 'application/json'
                 },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                timeout: 30000 // 30 second timeout
+                timeout: 10000 // 10 second timeout
             }
         );
 
         const pattern = JSON.parse(response.data.choices[0].message.content);
-        pattern.type = requestedType;
-        pattern.difficulty = requestedDifficulty;
-
-        // Validate the generated pattern
-        if (await validatePattern(pattern)) {
-            await saveGeneratedPattern(pattern);
-            res.json(pattern);
-        } else {
-            throw new Error('Invalid pattern generated');
-        }
-
-    } catch (error) {
-        console.error('Error generating pattern:', error);
         
-        // Fallback patterns if OpenAI fails
-        const fallbackPatterns = {
-            numeric: {
-                sequence: '2, 4, 6, 8, ?',
-                answer: '10',
-                type: 'numeric',
-                difficulty: requestedDifficulty,
-                hint: 'Look for the pattern in the numbers',
-                explanation: 'Each number increases by 2'
-            },
-            symbolic: {
-                sequence: 'x^1, x^2, x^3, ?',
-                answer: 'x^4',
-                type: 'symbolic',
-                difficulty: requestedDifficulty,
-                hint: 'Look at the exponents',
-                explanation: 'Each term increases the exponent by 1'
-            },
-            shape: {
-                sequence: '△, △□, △□■, ?',
-                answer: '△□■○',
-                type: 'shape',
-                difficulty: requestedDifficulty,
-                hint: 'Look at how shapes are added',
-                explanation: 'Each term adds a new shape while keeping previous shapes'
-            },
-            logical: {
-                sequence: '(2,3), (3,5), (5,7), ?',
-                answer: '(7,11)',
-                type: 'logical',
-                difficulty: requestedDifficulty,
-                hint: 'Look at how numbers change',
-                explanation: 'First number becomes previous second number, second number adds 2 more than before'
-            }
-        };
-
-        res.json(fallbackPatterns[requestedType] || fallbackPatterns.numeric);
+        // Cache the result
+        patternCache.set(cacheKey, pattern);
+        
+        res.json(pattern);
+    } catch (error) {
+        console.error('Pattern generation error:', error);
+        // Serve fallback pattern
+        res.json(getFallbackPattern(req.body.type, req.body.difficulty));
     }
 };
 
