@@ -319,115 +319,540 @@ const validateShapePattern = (sequence, answer, rule) => {
     return true;
 };
 
-// Predefined patterns for faster generation
-const predefinedPatterns = {
-    shape: {
-        easy: [
-            {
-                sequence: '△, △□, △□■, ?',
-                answer: '△□■○',
-                hint: 'Look at how shapes are added',
-                explanation: 'Each term adds a new shape while keeping previous shapes'
-            },
-            {
-                sequence: '●, ●○, ●○□, ?',
-                answer: '●○□△',
-                hint: 'Notice the pattern of shapes',
-                explanation: 'Add a new shape in sequence'
-            }
-        ],
-        medium: [
-            {
-                sequence: '■, ■■, ■■■, ?',
-                answer: '■■■■',
-                hint: 'Count the shapes',
-                explanation: 'Add one square each time'
-            },
-            {
-                sequence: '●○, ●●○, ●●●○, ?',
-                answer: '●●●●○',
-                hint: 'Look at filled and unfilled circles',
-                explanation: 'Add one filled circle before the empty circle'
-            }
-        ],
-        hard: [
-            {
-                sequence: '■□, ■■□□, ■■■□□□, ?',
-                answer: '■■■■□□□□',
-                hint: 'Look at filled and empty squares',
-                explanation: 'Double the number of squares each time'
-            }
-        ]
-    },
-    logical: {
-        easy: [
-            {
-                sequence: '(1,2), (2,3), (3,4), ?',
-                answer: '(4,5)',
-                hint: 'Look at how numbers change',
-                explanation: 'Each number increases by 1'
-            },
-            {
-                sequence: 'Spring→Summer, Summer→Autumn, Autumn→?',
-                answer: 'Winter',
-                hint: 'Think about seasons',
-                explanation: 'Follow the sequence of seasons'
-            }
-        ],
-        medium: [
-            {
-                sequence: '(2,3), (3,5), (5,7), ?',
-                answer: '(7,11)',
-                hint: 'Look at both numbers',
-                explanation: 'First number becomes previous second number, second number adds 2 more than before'
-            },
-            {
-                sequence: 'Red→Orange, Orange→Yellow, Yellow→?',
-                answer: 'Green',
-                hint: 'Think about rainbow colors',
-                explanation: 'Follow the rainbow color sequence'
-            }
-        ],
-        hard: [
-            {
-                sequence: '(Small,Circle), (Medium,Square), (Large,?)',
-                answer: 'Triangle',
-                hint: 'Look for patterns in size and shape',
-                explanation: 'Size increases while shapes follow a sequence'
-            }
-        ]
-    }
-};
-
 const generatePattern = async (req, res) => {
     try {
         await cleanupOldPatterns();
         
         let requestedType = req.body.type || 'random';
-        const requestedDifficulty = req.body.difficulty || 'medium';
-
+            const requestedDifficulty = req.body.difficulty || 'medium';
+            
         // Handle random type selection
         if (requestedType === 'random') {
+            console.log('Random type requested, selecting pattern type...');
             const patternTypes = ['numeric', 'symbolic', 'shape', 'logical'];
             requestedType = patternTypes[Math.floor(Math.random() * patternTypes.length)];
+            console.log('Randomly selected pattern type:', requestedType);
         }
 
-        // For shape and logical patterns, use predefined patterns
-        if (requestedType === 'shape' || requestedType === 'logical') {
-            const patterns = predefinedPatterns[requestedType][requestedDifficulty];
-            const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+        // Define fallback patterns first
+        const fallbackPattern = {
+            numeric: {
+                patterns: [
+                    {
+                        sequence: '2, 4, 6, 8, ?',
+                        answer: '10',
+                        hint: 'Look for a constant difference',
+                        rule: 'Add 2 to each term'
+                    },
+                    {
+                        sequence: '1, 4, 9, 16, ?',
+                        answer: '25',
+                        hint: 'Think about square numbers',
+                        rule: 'Square the position number'
+                    },
+                    {
+                        sequence: '3, 6, 12, 24, ?',
+                        answer: '48',
+                        hint: 'Look how each number changes',
+                        rule: 'Multiply by 2 each time'
+                    }
+                ],
+                get: function() {
+                    const pattern = this.patterns[Math.floor(Math.random() * this.patterns.length)];
+                    return {
+                        ...pattern,
+                        type: 'numeric',
+                        difficulty: requestedDifficulty.toLowerCase(),
+                        explanation: generateDetailedExplanation(pattern.sequence, pattern.answer, 'numeric', pattern.rule)
+                    };
+                }
+            },
+            symbolic: {
+                patterns: [
+                    {
+                        sequence: 'x^1, x^2, x^3, ?',
+                        answer: 'x^4',
+                        hint: 'Look at the exponents',
+                        rule: 'Increase the exponent by 1'
+                    },
+                    {
+                        sequence: '\\frac{1}{2}, \\frac{2}{3}, \\frac{3}{4}, ?',
+                        answer: '\\frac{4}{5}',
+                        hint: 'Look at numerator and denominator',
+                        rule: 'Increase both numbers by 1'
+                    },
+                    {
+                        sequence: '\\sum_{n=1}^{2} n, \\sum_{n=1}^{3} n, \\sum_{n=1}^{4} n, ?',
+                        answer: '\\sum_{n=1}^{5} n',
+                        hint: 'Look at the upper limit',
+                        rule: 'Increase the upper limit by 1'
+                    }
+                ],
+                get: function() {
+                    const pattern = this.patterns[Math.floor(Math.random() * this.patterns.length)];
+                    return {
+                        ...pattern,
+                        type: 'symbolic',
+                        difficulty: requestedDifficulty.toLowerCase(),
+                        explanation: generateDetailedExplanation(pattern.sequence, pattern.answer, 'symbolic', pattern.rule)
+                    };
+                }
+            },
+            shape: {
+                patterns: [
+                    {
+                        sequence: '△, △□, △□■, ?',
+                        answer: '△□■○',
+                        hint: 'Look at how shapes are added',
+                        rule: 'Add a new shape while keeping previous shapes'
+                    },
+                    {
+                        sequence: '●, ●○, ●○□, ?',
+                        answer: '●○□△',
+                        hint: 'Notice the pattern of shapes',
+                        rule: 'Add a new shape in sequence'
+                    },
+                    {
+                        sequence: '■, ■■, ■■■, ?',
+                        answer: '■■■■',
+                        hint: 'Count the squares',
+                        rule: 'Add one square each time'
+                    }
+                ],
+                get: function() {
+                    const pattern = this.patterns[Math.floor(Math.random() * this.patterns.length)];
+                    return {
+                        ...pattern,
+                        type: 'shape',
+                        difficulty: requestedDifficulty.toLowerCase(),
+                        explanation: generateDetailedExplanation(pattern.sequence, pattern.answer, 'shape', pattern.rule)
+                    };
+                }
+            },
+            logical: {
+                patterns: [
+                    {
+                        sequence: '(2,3), (3,5), (5,7), ?',
+                        answer: '(7,11)',
+                        hint: 'Look at how each number changes',
+                        rule: 'First number becomes previous second number, second number adds 2 more than before'
+                    },
+                    {
+                        sequence: 'Spring→Summer, Summer→Autumn, Autumn→?',
+                        answer: 'Winter',
+                        hint: 'Think about seasons',
+                        rule: 'Follow the sequence of seasons'
+                    },
+                    {
+                        sequence: '(Small,Circle), (Medium,Square), (Large,?)',
+                        answer: 'Triangle',
+                        hint: 'Look for patterns in size and shape',
+                        rule: 'Size increases while shapes follow a sequence'
+                    }
+                ],
+                get: function() {
+                    const pattern = this.patterns[Math.floor(Math.random() * this.patterns.length)];
+                    return {
+                        ...pattern,
+                        type: 'logical',
+                        difficulty: requestedDifficulty.toLowerCase(),
+                        explanation: generateDetailedExplanation(pattern.sequence, pattern.answer, 'logical', pattern.rule)
+                    };
+                }
+            }
+        };
+        
+        // Verify we're starting fresh if we hit the limit
+        const startCount = await GeneratedPattern.countDocuments();
+        if (startCount >= 20) {
+            throw new Error('Failed to cleanup patterns before generating new one');
+        }
+
+        let maxRetries = 5;
+        let attempt = 0;
+        let savedSuccessfully = false;
+
+        while (!savedSuccessfully && attempt < maxRetries) {
+            attempt++;
+            console.log(`Attempt ${attempt} of ${maxRetries}`);
+
+            // Fetch existing patterns to avoid duplicates
+            const existingPatterns = await GeneratedPattern.find({ 
+                type: requestedType 
+            }).select('sequence answer type difficulty').lean();
+
+            // Include existing patterns in the prompt to avoid duplicates
+            const existingPatternsPrompt = existingPatterns.map(p => 
+                `${p.sequence}|${p.answer}|${p.type}|${p.difficulty}`
+            ).join('\n');
+
+            const systemPrompt = `Generate college-level patterns EXACTLY in this format:
+                sequence|answer|hint|type|difficulty|explanation|rule
+
+                PATTERN TYPES AND RULES:
+
+                1. Numeric Patterns:
+                   VALID:
+                   - 2,4,6,8,?|10|Count by 2|numeric|easy|Numbers increase by 2|Add 2 to each term
+                   - 1,4,9,16,?|25|Square numbers|numeric|medium|Square the position|Square each position (n²)
+                   INVALID:
+                   - 1,2,4,7,?|11|Unclear progression|numeric|medium|Numbers increase|Invalid: Multiple possible rules
+                   - 1,1,2,3,?|5|Fibonacci|numeric|easy|Add previous numbers|Too common/obvious
+
+                2. Logical Patterns:
+                   VALID:
+                   - (Red,Circle,Small), (Blue,Square,Large), (Green,Triangle,?)|Medium|Complete the pattern|logical|medium|Size progression|Properties follow consistent order
+                   - Monday→Tuesday→Wednesday, Summer→Fall→Winter, Morning→?|Afternoon|Time sequence|logical|easy|Time progression|Sequential time-based progression
+                   INVALID:
+                   - (Dog,Bark), (Cat,Meow), (Bird,?)|Chirp|Animal sounds|logical|easy|Animal sounds|Too simple/obvious
+                   - (A,1), (B,2), (C,?)|3|Letter number pairs|logical|easy|Sequential mapping|No logical relationship
+
+                3. Symbolic Patterns:
+                   VALID EXAMPLES ONLY:
+                   - x^1, x^2, x^3, ?|x^4|Power sequence|symbolic|easy|Each term increases the power of x by 1|Increase exponent by 1
+                   - \\frac{1}{2}, \\frac{2}{3}, \\frac{3}{4}, ?|\\frac{4}{5}|Fraction sequence|symbolic|medium|Numerator and denominator increase by 1|Increase both numbers by 1
+                   - \\sum_{n=1}^{2} n, \\sum_{n=1}^{3} n, \\sum_{n=1}^{4} n, ?|\\sum_{n=1}^{5} n|Sum sequence|symbolic|medium|Upper limit increases by 1|Increase upper limit
+                   - 2x, 4x^2, 8x^3, ?|16x^4|Geometric with variable|symbolic|hard|Coefficient doubles and power increases|Double coefficient and increase power
+
+                   EXPLANATION FORMAT FOR SYMBOLIC:
+                   Let's analyze this symbolic sequence step by step:
+
+                   Rule: [State the rule clearly]
+
+                   Step 1: Identify the components:
+                   - First term: [Analyze first term]
+                   - Second term: [Analyze second term]
+                   - Third term: [Analyze third term]
+
+                   Step 2: Analyze the pattern:
+                   - How coefficients change: [Describe pattern]
+                   - How exponents change: [Describe pattern]
+                   - Other observations: [Any additional patterns]
+
+                   Step 3: Apply the pattern:
+                   - Next coefficient: [Show calculation]
+                   - Next exponent: [Show calculation]
+                   - Final term: [Show result]
+
+                   Therefore, the next term is [answer].
+
+                   RULES FOR SYMBOLIC:
+                   - Must use proper mathematical notation (x, \\frac, \\sum, \\cdot)
+                   - Must include variables or mathematical operators
+                   - Must show clear progression in coefficients/exponents
+                   - Must use LaTeX formatting for fractions and special symbols
+
+                DIFFICULTY RULES:
+Easy:
+                - Single-step operations
+                - Clear, immediate patterns
+                - Basic sequences
+                - No more than 4-5 terms
+
+Medium:
+                - Two-step operations
+                - Pattern requires analysis
+                - May involve basic math concepts
+                - 4-6 terms acceptable
+
+Hard:
+                - Multi-step operations
+                - Complex progressions
+                - Advanced math concepts
+                - May use 5-7 terms
+
+                VALIDATION RULES:
+                1. Must have clear, unambiguous progression
+                2. Must include explicit rule explanation
+                3. Answer must be logically derivable
+                4. No culturally specific references
+                5. No common/obvious patterns
+                6. Must match difficulty criteria
+
+                EXISTING PATTERNS TO AVOID:
+                ${existingPatternsPrompt}
+
+                IMPORTANT: Response MUST contain EXACTLY 7 parts separated by | symbol.
+
+                4. Shape Patterns:
+                   VALID EXAMPLES ONLY:
+                   - △, △□, △□■, ?|△□■○|Shape sequence|shape|medium|Each term adds a new shape in sequence|Add shapes in order: triangle, square, rectangle, circle
+                   EXPLANATION FORMAT FOR SHAPE PATTERNS:
+                   Let's analyze this shape sequence step by step:
+
+                   Rule: Each term adds a new shape in sequence
+
+                   Step 1: Examine each term in detail:
+                   Term 1: △ (single triangle)
+                   Term 2: △□ (kept triangle, added square)
+                   Term 3: △□■ (kept previous shapes, added rectangle)
+
+                   Step 2: Analyze how the pattern evolves:
+                   - Pattern starts with △
+                   - Each term keeps all previous shapes
+                   - New shape is added at the end
+                   - Shapes follow order: △ → □ → ■ → ○
+
+                   Step 3: Form the next term:
+                   △□■○
+                   - Keep all shapes from term 3: △□■
+                   - Add next shape in sequence: ○
+                   
+                   Therefore, the next term in the sequence is △□■○.
+
+                   Pattern sequence: △, △□, △□■, △□■○`;
+
+            const response = await axios.post(
+                'https://api.openai.com/v1/chat/completions',
+                {
+                    model: "gpt-4-turbo-preview",
+                    messages: [
+                        {
+                            role: "system",
+                            content: systemPrompt
+                        },
+                        {
+                            role: "user",
+                            content: `Generate a ${requestedDifficulty}-level ${requestedType} pattern with a clear, consistent progression. 
+                            For numeric patterns, ensure the differences follow a clear pattern.
+                            MUST return in format: sequence|answer|hint|type|difficulty|explanation|rule`
+                        }
+                    ],
+                    temperature: 0.7, // Lower temperature for more consistent patterns
+                    presence_penalty: 0.5,
+                    frequency_penalty: 0.5,
+                    max_tokens: 200
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            const text = response.data.choices[0].message.content.trim();
+            console.log('AI Response:', text);
+
+            let parts = text.split('|').map(part => part.trim());
             
-            return res.json({
-                ...pattern,
+            // Validate parts length and content
+            if (parts.length !== 7 || !parts.every(part => part)) {
+                continue;
+            }
+
+            const [sequence, answer, hint, type, difficulty, explanation, rule] = parts;
+
+            // Validate pattern based on type
+            let isValid = false;
+            switch (type) {
+                case 'numeric':
+                    isValid = validateNumericPattern(sequence, answer, rule);
+                    break;
+                case 'logical':
+                    isValid = validateLogicalPattern(sequence, answer, rule);
+                    break;
+                case 'symbolic':
+                    isValid = validateSymbolicPattern(sequence, answer, rule);
+                    break;
+                case 'shape':
+                    isValid = validateShapePattern(sequence, answer, rule);
+                    break;
+            }
+
+                if (!isValid) {
+                console.log(`Invalid ${type} pattern, retrying...`);
+                continue;
+            }
+
+            const pattern = {
+                sequence,
+                answer,
                 type: requestedType,
-                difficulty: requestedDifficulty
-            });
+                difficulty: requestedDifficulty.toLowerCase(),
+                hint,
+                explanation: type === 'numeric' ? 
+                    generateDetailedExplanation(sequence, answer, type, rule) : 
+                    type === 'symbolic' ?
+                    generateDetailedExplanation(sequence, answer, type, rule) :
+                    explanation,
+                rule
+            };
+            
+            // Generate detailed explanation using OpenAI for shape patterns
+            if (pattern.type === 'shape') {
+                try {
+                    const response = await axios.post(
+                'https://api.openai.com/v1/chat/completions',
+                {
+                    model: "gpt-4-turbo-preview",
+                    messages: [
+                        {
+                            role: "system",
+                                    content: `You are a pattern analysis expert. Provide a detailed step-by-step analysis of shape patterns using this EXACT format:
+
+Let's analyze this shape sequence step by step:
+
+Rule: [State the pattern rule clearly]
+
+Step 1: Examine each term in detail:
+Term 1: [Describe first term's shapes and arrangement]
+Term 2: [Describe second term's shapes and arrangement]
+Term 3: [Describe third term's shapes and arrangement]
+
+Step 2: Analyze the pattern progression:
+- Initial pattern: [Describe starting shape(s)]
+- Changes between terms: [Describe how shapes are added/modified]
+- Position analysis: [Describe where new shapes are placed]
+- Pattern consistency: [Describe what stays constant]
+
+Step 3: Determine the next term:
+1. Keep existing shapes: [List shapes to keep]
+2. Apply pattern rule: [Explain what shape to add/modify]
+3. Final arrangement: [Describe the complete next term]
+
+Therefore, the next term in the sequence is [answer].
+
+Pattern sequence: [Write complete sequence with answer]`
+                                },
+                                {
+                                    role: "user",
+                                    content: `Analyze this shape pattern:
+                                    Sequence: ${pattern.sequence}
+                                    Answer: ${pattern.answer}
+                                    Rule: ${pattern.rule || 'Add shapes in sequence'}`
+                                }
+                            ],
+                            temperature: 0.7,
+                            max_tokens: 500
+                        },
+                        {
+                            headers: {
+                                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                                'Content-Type': 'application/json'
+                            }
+                        }
+                    );
+
+                    pattern.explanation = response.data.choices[0].message.content.trim();
+                    console.log('Generated Shape Explanation:', pattern.explanation);
+                } catch (error) {
+                    console.error('Error generating shape explanation:', error);
+                    pattern.explanation = generateDetailedExplanation(
+                        pattern.sequence,
+                        pattern.answer,
+                        'shape',
+                        pattern.rule
+                    );
+                }
+            }
+
+            // Add OpenAI explanation for logical patterns
+            if (pattern.type === 'logical') {
+                try {
+                    console.log('Generating logical pattern explanation...');
+                    const response = await axios.post(
+                        'https://api.openai.com/v1/chat/completions',
+                        {
+                            model: "gpt-4-turbo-preview",
+                            messages: [
+                                {
+                                    role: "system",
+                                    content: `You are a pattern analysis expert. Analyze logical patterns in this format:
+
+Let's analyze this logical sequence step by step:
+
+Rule: [Explain the pattern rule]
+
+Step 1: Identify the pattern type:
+[Describe if it's a word sequence, category pattern, or relationship pattern]
+
+Step 2: Analyze the progression:
+[Break down how each term relates to the next]
+
+Step 3: Apply the pattern logic:
+[Explain how to determine the next term]
+
+Therefore, the next term in the sequence is [answer].`
+                                },
+                                {
+                                    role: "user",
+                                    content: `Analyze this logical pattern:
+                                    Sequence: ${pattern.sequence}
+                                    Answer: ${pattern.answer}
+                                    Rule: ${pattern.rule || 'Follow the logical sequence'}`
+                                }
+                            ],
+                            temperature: 0.7,
+                            max_tokens: 500
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+                    console.log('Logical pattern explanation generated successfully');
+                    pattern.explanation = response.data.choices[0].message.content.trim();
+                } catch (error) {
+                    console.error('Error generating logical explanation:', error);
+                    // Fallback explanation
+                    pattern.explanation = `This logical pattern follows a ${pattern.difficulty} progression. ${pattern.hint}`;
+                }
+            }
+
+            // Try to save the pattern
+            savedSuccessfully = await saveGeneratedPattern(pattern);
+            
+            if (savedSuccessfully) {
+                const currentCount = await GeneratedPattern.countDocuments();
+                console.log(`Current pattern count: ${currentCount}/20`);
+                
+                if (currentCount >= 20) {
+                    await cleanupOldPatterns();
+                }
+                
+                res.json(pattern);
+            return;
+            }
         }
 
-        // Rest of your existing code for numeric and symbolic patterns...
+        // Instead of throwing error, provide a fallback pattern
+        if (!savedSuccessfully) {
+            console.log('Using fallback pattern after failed attempts');
+            
+            // Get appropriate fallback based on type
+            const pattern = fallbackPattern[requestedType]?.get?.() || 
+                           fallbackPattern[requestedType] || 
+                           fallbackPattern.numeric;
+            
+            // Try to save the fallback pattern
+            savedSuccessfully = await saveGeneratedPattern(pattern);
+            
+            if (savedSuccessfully) {
+                const currentCount = await GeneratedPattern.countDocuments();
+                console.log(`Current pattern count (fallback): ${currentCount}/20`);
+                
+                if (currentCount >= 20) {
+                    await cleanupOldPatterns();
+                }
+                
+                res.json(pattern);
+                return;
+            }
+        }
+
+        // Only throw error if even fallback pattern fails to save
+        throw new Error('Failed to generate and save pattern, including fallback');
+
     } catch (error) {
         console.error('Error generating pattern:', error);
-        res.status(500).json({ error: 'Failed to generate pattern' });
+        res.status(500).json({
+            error: 'Failed to generate pattern',
+            details: error.message
+        });
     }
 };
 
