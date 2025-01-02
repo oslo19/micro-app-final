@@ -320,17 +320,17 @@ const generatePattern = async (req, res) => {
         // Generate pattern using OpenAI for all types
         const prompt = `Generate a ${requestedDifficulty} difficulty ${requestedType} pattern.
             Requirements:
-            - For numeric: clear mathematical progression
-            - For symbolic: valid LaTeX mathematical expressions
-            - For shape: use basic shapes (△, □, ■, ○, ●)
-            - For logical: clear logical relationships
+            - For numeric: simple number sequence
+            - For symbolic: basic LaTeX expressions
+            - For shape: max 4 shapes (△, □, ■, ○)
+            - For logical: simple relationships
             
-            Return in JSON format:
+            Return concise JSON:
             {
-                "sequence": "the pattern sequence",
-                "answer": "the next term",
-                "hint": "a helpful hint",
-                "explanation": "detailed explanation"
+                "sequence": "short pattern (max 4 terms)",
+                "answer": "next term",
+                "hint": "brief hint (max 10 words)",
+                "explanation": "brief explanation (max 20 words)"
             }`;
 
         const response = await axios.post(
@@ -340,7 +340,7 @@ const generatePattern = async (req, res) => {
                 messages: [
                     {
                         role: "system",
-                        content: "You are a pattern generation expert."
+                        content: "You are a pattern expert. Be concise."
                     },
                     {
                         role: "user",
@@ -348,7 +348,7 @@ const generatePattern = async (req, res) => {
                     }
                 ],
                 temperature: 0.7,
-                max_tokens: 500,
+                max_tokens: 200,
                 response_format: { type: "json_object" }
             },
             {
@@ -356,7 +356,7 @@ const generatePattern = async (req, res) => {
                     'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
                     'Content-Type': 'application/json'
                 },
-                timeout: 30000 // 30 second timeout
+                timeout: 8000
             }
         );
 
