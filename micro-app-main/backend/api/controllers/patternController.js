@@ -304,6 +304,53 @@ const validateShapePattern = (sequence, answer, rule) => {
     return true;
 };
 
+// Add pre-defined shape patterns
+const shapePatterns = {
+    easy: [
+        {
+            sequence: '△, △△, △△△, ?',
+            answer: '△△△△',
+            hint: 'Count the triangles',
+            explanation: 'Add one triangle each time'
+        },
+        {
+            sequence: '●, ●○, ●○●, ?',
+            answer: '●○●○',
+            hint: 'Look at how circles alternate',
+            explanation: 'Alternate between filled and empty circles'
+        }
+    ],
+    medium: [
+        {
+            sequence: '△, △□, △□■, ?',
+            answer: '△□■○',
+            hint: 'Look at how shapes are added',
+            explanation: 'Each term adds a new different shape'
+        },
+        {
+            sequence: '■□, □■, ■□, ?',
+            answer: '□■',
+            hint: 'Look at how squares alternate',
+            explanation: 'Filled and empty squares swap positions'
+        }
+    ],
+    hard: [
+        {
+            sequence: '△■, ■△○, △■○□, ?',
+            answer: '■△○□●',
+            hint: 'Watch the pattern of shape additions',
+            explanation: 'Add one new shape each time while maintaining order'
+        },
+        {
+            sequence: '●○●, ○●○●, ●○●○●, ?',
+            answer: '○●○●○●',
+            hint: 'Look at how circles alternate and grow',
+            explanation: 'Pattern alternates and adds one circle each time'
+        }
+    ]
+};
+
+// Modify the generatePattern function
 const generatePattern = async (req, res) => {
     try {
         await cleanupOldPatterns();
@@ -311,88 +358,118 @@ const generatePattern = async (req, res) => {
         let requestedType = req.body.type || 'random';
         const requestedDifficulty = req.body.difficulty || 'medium';
 
-        // For shape/logical patterns
-        if (requestedType === 'shape' || requestedType === 'logical') {
-            try {
-                const response = await axios.post(
-                    'https://api.openai.com/v1/chat/completions',
-                    {
-                        model: "gpt-4-turbo-preview",
-                        messages: [
-                            {
-                                role: "system",
-                                content: "You are a pattern generator."
-                            },
-                            {
-                                role: "user",
-                                content: `Generate a ${requestedDifficulty} difficulty ${requestedType} pattern.
-                                Return in this format:
-                                {
-                                    "sequence": "term1, term2, term3, ?",
-                                    "answer": "next term",
-                                    "hint": "helpful hint",
-                                    "explanation": "detailed explanation"
-                                }`
-                            }
-                        ],
-                        temperature: 0.7,
-                        response_format: { type: "json_object" }
-                    },
-                    {
-                        headers: {
-                            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-                            'Content-Type': 'application/json'
-                        }
-                    }
-                );
-
-                const pattern = JSON.parse(response.data.choices[0].message.content);
-                
-                // Convert array to string if needed
-                if (Array.isArray(pattern.sequence)) {
-                    pattern.sequence = pattern.sequence.join(', ');
-                }
-                if (Array.isArray(pattern.answer)) {
-                    pattern.answer = pattern.answer.join('');
-                }
-
-                // Add type and difficulty
-                pattern.type = requestedType;
-                pattern.difficulty = requestedDifficulty;
-
-                // Validate and save pattern
-                if (await validatePattern(pattern)) {
-                    await saveGeneratedPattern(pattern);
-                    return res.json(pattern);
-                }
-            } catch (error) {
-                console.error('Error generating pattern:', error);
-                
-                // Fallback pattern
-                const fallbackPattern = {
-                    sequence: requestedType === 'shape' ? 
-                        '△, △□, △□■, ?' : 
-                        '(1,2), (2,3), (3,5), ?',
-                    answer: requestedType === 'shape' ? 
-                        '△□■○' : 
-                        '(5,8)',
-                    type: requestedType,
-                    difficulty: requestedDifficulty,
-                    hint: 'Look for the pattern progression',
-                    explanation: 'Each term follows a specific rule'
-                };
-
-                return res.json(fallbackPattern);
-            }
+        // If shape pattern is requested, use pre-defined patterns
+        if (requestedType === 'shape') {
+            const patterns = shapePatterns[requestedDifficulty];
+            const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+            return res.json({
+                ...pattern,
+                type: 'shape',
+                difficulty: requestedDifficulty
+            });
         }
 
-        // ... rest of your code for other pattern types
+        // If random, select a type
+        if (requestedType === 'random') {
+            const types = ['numeric', 'symbolic', 'shape', 'logical'];
+            requestedType = types[Math.floor(Math.random() * types.length)];
+        }
+
+        // Generate pattern using OpenAI for all types
+        const prompt = `Generate a ${requestedDifficulty} difficulty ${requestedType} pattern.
+            Requirements:
+            - For numeric: clear mathematical progression
+            - For symbolic: valid LaTeX mathematical expressions
+            - For shape: use basic shapes (△, □, ■, ○, ●)
+            - For logical: clear logical relationships
+            
+            Return in JSON format:
+            {
+                "sequence": "the pattern sequence",
+                "answer": "the next term",
+                "hint": "a helpful hint",
+                "explanation": "detailed explanation"
+            }`;
+
+            const response = await axios.post(
+                'https://api.openai.com/v1/chat/completions',
+                {
+                    model: "gpt-4-turbo-preview",
+                    messages: [
+                        {
+                            role: "system",
+                        content: "You are a pattern generation expert."
+                        },
+                        {
+                            role: "user",
+                        content: prompt
+                    }
+                ],
+                temperature: 0.7,
+                max_tokens: 500,
+                response_format: { type: "json_object" }
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                timeout: 30000 // 30 second timeout
+            }
+        );
+
+        const pattern = JSON.parse(response.data.choices[0].message.content);
+        pattern.type = requestedType;
+        pattern.difficulty = requestedDifficulty;
+
+        // Validate the generated pattern
+        if (await validatePattern(pattern)) {
+            await saveGeneratedPattern(pattern);
+            res.json(pattern);
+        } else {
+            throw new Error('Invalid pattern generated');
+        }
+
     } catch (error) {
-        console.error('Error in pattern generation:', error);
-        res.status(500).json({ 
-            error: 'Failed to generate pattern',
-            details: error.message 
-        });
+        console.error('Error generating pattern:', error);
+        
+        // Fallback patterns if OpenAI fails
+        const fallbackPatterns = {
+            numeric: {
+                sequence: '2, 4, 6, 8, ?',
+                answer: '10',
+                type: 'numeric',
+                difficulty: requestedDifficulty,
+                hint: 'Look for the pattern in the numbers',
+                explanation: 'Each number increases by 2'
+            },
+            symbolic: {
+                sequence: 'x^1, x^2, x^3, ?',
+                answer: 'x^4',
+                type: 'symbolic',
+                difficulty: requestedDifficulty,
+                hint: 'Look at the exponents',
+                explanation: 'Each term increases the exponent by 1'
+            },
+            shape: {
+                sequence: '△, △□, △□■, ?',
+                answer: '△□■○',
+                type: 'shape',
+                difficulty: requestedDifficulty,
+                hint: 'Look at how shapes are added',
+                explanation: 'Each term adds a new shape while keeping previous shapes'
+            },
+            logical: {
+                sequence: '(2,3), (3,5), (5,7), ?',
+                answer: '(7,11)',
+                type: 'logical',
+                difficulty: requestedDifficulty,
+                hint: 'Look at how numbers change',
+                explanation: 'First number becomes previous second number, second number adds 2 more than before'
+            }
+        };
+
+        res.json(fallbackPatterns[requestedType] || fallbackPatterns.numeric);
     }
 };
 
