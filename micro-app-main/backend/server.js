@@ -14,24 +14,17 @@ mongoose.connect(process.env.MONGODB_URI, {
 
 // CORS configuration
 app.use(cors({
-  origin: [
-    'https://micro-app-final.vercel.app',
-    'https://micro-final-frontend-raqcge774-oslo19s-projects.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:3000'
-  ],
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  credentials: false
 }));
-
-// Add preflight handling
-app.options('*', cors());
 
 // Add security headers
 app.use((req, res, next) => {
-  res.header('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
-  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
   next();
 });
 
