@@ -3,38 +3,35 @@ const Pattern = require('../models/Pattern');
 const CompletedPattern = require('../models/CompletedPattern');
 const GeneratedPattern = require('../models/GeneratedPattern');
 
-const validatePattern = async (pattern) => {
+// Simplified validation
+const quickValidatePattern = (pattern) => {
     try {
-        // Add timeout and retry logic
-        const config = {
-            timeout: 5000, // 5 second timeout
-            headers: {
-                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            maxRetries: 2
-        };
-
-        const response = await axios.post(
-            'https://api.openai.com/v1/chat/completions',
-            {
-                model: "gpt-4",
-                messages: [{ 
-                    role: "user", 
-                    content: `Is the pattern ${pattern.sequence} ambiguous? Answer only yes or no.`
-                }],
-                temperature: 0.3
-            },
-            config
-        );
-
-        // Simplified check
-        const answer = response.data.choices[0].message.content.toLowerCase();
-        return answer.includes('no');
-
+        // Basic checks only
+        if (!pattern.sequence || !pattern.answer) return false;
+        
+        switch (pattern.type) {
+            case 'numeric':
+                return /\d/.test(pattern.sequence) && /\d/.test(pattern.answer);
+                
+            case 'symbolic':
+                return pattern.sequence.includes('x') || 
+                       pattern.sequence.includes('\\') ||
+                       pattern.sequence.includes('^');
+                
+            case 'shape':
+                const shapes = ['●', '○', '■', '□', '△', '▲', '◆'];
+                return shapes.some(s => pattern.sequence.includes(s));
+                
+            case 'logical':
+                return pattern.sequence.includes('(') || 
+                       pattern.sequence.includes('→') ||
+                       pattern.sequence.includes(',');
+                
+            default:
+                return true;
+        }
     } catch (error) {
-        console.error('Validation error:', error);
-        return true; // Allow pattern on validation error
+        return false;
     }
 };
 
@@ -323,8 +320,6 @@ const generatePattern = async (req, res) => {
             return res.json(patternCache.get(cacheKey));
         }
 
-        const prompt = `Generate a ${requestedDifficulty} ${requestedType} pattern with sequence and answer. Be brief.`;
-
         const response = await axios.post(
             'https://api.openai.com/v1/chat/completions',
             {
@@ -336,7 +331,7 @@ const generatePattern = async (req, res) => {
                     },
                     {
                         role: "user",
-                        content: prompt
+                        content: `Generate a ${requestedDifficulty} ${requestedType} pattern with sequence and answer. Be brief.`
                     }
                 ],
                 temperature: 0.2,
@@ -358,9 +353,14 @@ const generatePattern = async (req, res) => {
             difficulty: requestedDifficulty
         };
 
-        // Cache the pattern
+        // Quick validation only
+        if (!quickValidatePattern(pattern)) {
+            throw new Error('Invalid pattern format');
+        }
+
+        // Cache valid pattern
         patternCache.set(cacheKey, pattern);
-        if (patternCache.size > 10) { // Reduced cache size
+        if (patternCache.size > 10) {
             const firstKey = patternCache.keys().next().value;
             patternCache.delete(firstKey);
         }
