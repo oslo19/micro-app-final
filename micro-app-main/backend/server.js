@@ -23,14 +23,6 @@ app.use(cors({
   credentials: true
 }));
 
-// Add security headers
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
-  next();
-});
-
 app.use(express.json());
 
 // Import routes
@@ -50,16 +42,21 @@ app.get('/', (req, res) => {
 
 // Error handling
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something broke!' });
+  console.error('Error:', err.stack);
+  res.status(err.status || 500).json({
+    error: err.message || 'Something broke!',
+    status: err.status || 500
+  });
 });
 
 // Port configuration
 const PORT = process.env.PORT || 10000;
 
-// Start server
+// Start server with error handling
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
+}).on('error', (err) => {
+  console.error('Server error:', err);
 });
 
 // Export for Render
