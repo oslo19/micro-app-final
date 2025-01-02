@@ -320,43 +320,43 @@ const generatePattern = async (req, res) => {
         // Generate pattern using OpenAI for all types
         const prompt = `Generate a ${requestedDifficulty} difficulty ${requestedType} pattern.
             Requirements:
-            - For numeric: simple number sequence
-            - For symbolic: basic LaTeX expressions
-            - For shape: max 4 shapes (△, □, ■, ○)
-            - For logical: simple relationships
+            - For numeric: clear mathematical progression
+            - For symbolic: valid LaTeX mathematical expressions
+            - For shape: use basic shapes (△, □, ■, ○, ●)
+            - For logical: clear logical relationships
             
-            Return concise JSON:
+            Return in JSON format:
             {
-                "sequence": "short pattern (max 4 terms)",
-                "answer": "next term",
-                "hint": "brief hint (max 10 words)",
-                "explanation": "brief explanation (max 20 words)"
+                "sequence": "the pattern sequence",
+                "answer": "the next term",
+                "hint": "a helpful hint",
+                "explanation": "detailed explanation"
             }`;
 
-        const response = await axios.post(
-            'https://api.openai.com/v1/chat/completions',
-            {
-                model: "gpt-4-turbo-preview",
-                messages: [
-                    {
-                        role: "system",
-                        content: "You are a pattern expert. Be concise."
-                    },
-                    {
-                        role: "user",
+            const response = await axios.post(
+                'https://api.openai.com/v1/chat/completions',
+                {
+                    model: "gpt-4-turbo-preview",
+                    messages: [
+                        {
+                            role: "system",
+                        content: "You are a pattern generation expert."
+                        },
+                        {
+                            role: "user",
                         content: prompt
                     }
                 ],
                 temperature: 0.7,
-                max_tokens: 200,
+                max_tokens: 500,
                 response_format: { type: "json_object" }
-            },
-            {
-                headers: {
-                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-                    'Content-Type': 'application/json'
                 },
-                timeout: 8000
+                {
+                    headers: {
+                        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                timeout: 30000 // 30 seconds timeout, but Vercel will cut off at 10s
             }
         );
 
