@@ -11,7 +11,7 @@ export const generatePattern = async (options: GeneratePatternOptions = {}): Pro
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            credentials: 'include',
+            mode: 'cors',
             body: JSON.stringify(options)
         });
 
@@ -24,12 +24,12 @@ export const generatePattern = async (options: GeneratePatternOptions = {}): Pro
     } catch (error) {
         console.error('Pattern generation error:', error);
         return {
-            sequence: '△, △□, △□■, ?',
-            answer: '△□■○',
-            type: 'shape',
+            sequence: '2, 4, 6, 8, ?',
+            answer: '10',
+            type: 'numeric',
             difficulty: options.difficulty || 'medium',
-            hint: 'Look at how shapes are added',
-            explanation: 'Each term adds a new shape while keeping previous shapes'
+            hint: 'Look for the pattern in the numbers',
+            explanation: 'Each number increases by 2'
         };
     }
 };
