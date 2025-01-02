@@ -304,6 +304,9 @@ const validateShapePattern = (sequence, answer, rule) => {
     return true;
 };
 
+// Add pattern cache
+const patternCache = new Map();
+
 const generatePattern = async (req, res) => {
     try {
         await cleanupOldPatterns();
@@ -317,7 +320,13 @@ const generatePattern = async (req, res) => {
             requestedType = types[Math.floor(Math.random() * types.length)];
         }
 
-        // Generate pattern using OpenAI for all types
+        // Check cache first
+        const cacheKey = `${requestedType}-${requestedDifficulty}`;
+        if (patternCache.has(cacheKey)) {
+            console.log('Returning cached pattern');
+            return res.json(patternCache.get(cacheKey));
+        }
+
         const prompt = `Generate a ${requestedDifficulty} difficulty ${requestedType} pattern.
             Requirements:
             - For numeric: clear mathematical progression
@@ -333,30 +342,30 @@ const generatePattern = async (req, res) => {
                 "explanation": "detailed explanation"
             }`;
 
-            const response = await axios.post(
-                'https://api.openai.com/v1/chat/completions',
-                {
-                    model: "gpt-4-turbo-preview",
-                    messages: [
-                        {
-                            role: "system",
-                        content: "You are a pattern generation expert."
-                        },
-                        {
-                            role: "user",
+        const response = await axios.post(
+            'https://api.openai.com/v1/chat/completions',
+            {
+                model: "gpt-3.5-turbo",  // Faster model
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are a pattern generation expert. Be concise."
+                    },
+                    {
+                        role: "user",
                         content: prompt
                     }
                 ],
-                temperature: 0.7,
-                max_tokens: 500,
+                temperature: 0.3,  // More focused responses
+                max_tokens: 250,   // Shorter responses
                 response_format: { type: "json_object" }
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                    'Content-Type': 'application/json'
                 },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                timeout: 30000 // 30 seconds timeout, but Vercel will cut off at 10s
+                timeout: 15000  // Reduced timeout
             }
         );
 
@@ -364,8 +373,15 @@ const generatePattern = async (req, res) => {
         pattern.type = requestedType;
         pattern.difficulty = requestedDifficulty;
 
-        // Validate the generated pattern
         if (await validatePattern(pattern)) {
+            // Cache the successful pattern
+            patternCache.set(cacheKey, pattern);
+            // Limit cache size
+            if (patternCache.size > 20) {
+                const firstKey = patternCache.keys().next().value;
+                patternCache.delete(firstKey);
+            }
+            
             await saveGeneratedPattern(pattern);
             res.json(pattern);
         } else {
